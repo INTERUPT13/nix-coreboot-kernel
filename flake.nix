@@ -9,14 +9,23 @@
     };
   };
 
-  outputs = { self, nixpkgs, linux-src }: with import nixpkgs{system="x86_64-linux";}; 
+  outputs = { self, nixpkgs, linux-src }: with import nixpkgs{system="x86_64-linux";};
   {
-    packages.x86_64-linux.coreboot-kernel = linuxKernel.manualConfig {
-      inherit lib stdenv;
+    packages.x86_64-linux.coreboot-kernel = buildLinux( rec {
       version = "1.57";
       src = linux-src;
-      configfile = "${self}/kernel_config";
-    };
+
+      structuredExtraConfig = with lib.kernel; {
+        EXPERT = yes;
+      };
+
+      nativebuildInputs = [
+        flex
+      ];
+
+      kernelPatches = [];
+
+    } // {});
 
     defaultPackage.x86_64-linux = self.packages.x86_64-linux.coreboot-kernel;
 

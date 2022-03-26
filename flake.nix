@@ -10,22 +10,36 @@
   };
 
   outputs = { self, nixpkgs, linux-src }: with import nixpkgs{system="x86_64-linux";};
-  {
-    packages.x86_64-linux.coreboot-kernel = buildLinux( rec {
-      version = "1.57";
+  let
+    readConfig = configfile: import (runCommand "config.nix" {} ''                                       
+      echo "{" > "$out"
+      while IFS='=' read key val; do                                                                     
+        [ "x''${key#CONFIG_}" != "x$key" ] || continue                                                   
+        no_firstquote="''${val#\"}";                                                                     
+        echo '  "'"$key"'" = "'"''${no_firstquote%\"}"'";' >> "$out"                                     
+      done < "${configfile}"                                                                             
+      echo "}" >> $out                                                                                   
+    '').outPath;
+  in {
+
+
+    packages.x86_64-linux.coreboot-kernel = linuxKernel.manualConfig rec {
+      inherit stdenv lib;
+
+      version = "5.17.0";
+      modDirVersion = version;
+
       src = linux-src;
-
-      structuredExtraConfig = with lib.kernel; {
-        EXPERT = yes;
-      };
-
-      nativebuildInputs = [
-        flex
+      kernelPatches = [
       ];
 
-      kernelPatches = [];
+      configfile = ./kernel_config.conf;
+      config = readConfig configfile;
 
-    } // {});
+
+      extraMeta.branch = "5.17";
+
+    };
 
     defaultPackage.x86_64-linux = self.packages.x86_64-linux.coreboot-kernel;
 
